@@ -15,7 +15,9 @@ class ConexaoOdoo():
         cliente_id = self.create_cliente()
         print 'ID do cliente criado: %s.\n' % cliente_id
         cliente_atualizado = self.update_cliente(cliente_id)
-        print 'Cliente atualizado: %s' % 'SIM' if cliente_atualizado else 'Nao'
+        print 'Cliente atualizado: %s.\n' % 'SIM' if cliente_atualizado else 'Nao'
+        quantidade_cliente = self.get_quantidade_cliente()
+        print 'Numero de clientes cadastrados: %s.\n' % quantidade_cliente
 
     def new_connection(self):
         """
@@ -63,6 +65,16 @@ class ConexaoOdoo():
         cliante_atualizado = self.conn.execute(self.database, self.uid, self.password,
                                                'res.partner', 'write', [cliente_id], vals)
         return cliante_atualizado
+
+    def get_quantidade_cliente(self):
+        """
+        O metodo realiza a busca de registros.
+        :return: Numero da quantidade total de clientes.
+        :rtype: list
+        """
+        cliente_ids = self.conn.execute(self.database, self.uid, self.password, 'res.partner',
+                                        'search', [])
+        return len(cliente_ids)
 
 
 ConexaoOdoo()
