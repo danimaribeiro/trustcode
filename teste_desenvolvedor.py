@@ -18,6 +18,8 @@ class ConexaoOdoo():
         print 'Cliente atualizado: %s.\n' % 'SIM' if cliente_atualizado else 'Nao'
         quantidade_cliente = self.get_quantidade_cliente()
         print 'Numero de clientes cadastrados: %s.\n' % quantidade_cliente
+        cliente_dados = self.get_cliente_dados()
+        print '10 primeiros clientes por ordem alfebetica: \n%s' % cliente_dados
 
     def new_connection(self):
         """
@@ -75,6 +77,22 @@ class ConexaoOdoo():
         cliente_ids = self.conn.execute(self.database, self.uid, self.password, 'res.partner',
                                         'search', [])
         return len(cliente_ids)
+
+    def get_cliente_dados(self):
+        """
+        O metodo encontra dados dos 10 primeiros clientes.
+        :return: Descricao do nome, em ordem alfabetica, e da cidade dos clientes.
+        :rtype: str
+        """
+        cliente_ids = self.conn.execute(self.database, self.uid, self.password, 'res.partner',
+                                        'search', [], 0, 10, 'id')
+        cliente_dados = self.conn.execute(self.database, self.uid, self.password, 'res.partner',
+                                          'read', cliente_ids, ['name', 'city_id'])
+        cliente_dados = sorted(cliente_dados, key=lambda n: n.get('name').lower())
+        list_dados = list()
+        map(lambda d: list_dados.append(
+            '%s / %s' % (d.get('name'), d.get('city_id')[1] or 'Nao cadastrado')), cliente_dados)
+        return ' \n'.join(list_dados)
 
 
 ConexaoOdoo()
