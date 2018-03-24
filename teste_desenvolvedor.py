@@ -25,7 +25,9 @@ class ConexaoOdoo():
         produto_maior_venda_dados = self.get_produto_maior_venda_dados()
         print 'Produtos da maior venda:\n%s' % produto_maior_venda_dados
         percentual_de_vendas = self.get_percentual_de_vendas()
-        print 'O percentual de fechamento e: %s' % percentual_de_vendas
+        print 'O percentual de fechamento e: %s\n' % percentual_de_vendas
+        valor_total_faturas = self.get_valor_total_faturas()
+        print 'Total de faturas 06/2017: R$%s\n' % valor_total_faturas
 
     def new_connection(self):
         """
@@ -157,6 +159,23 @@ class ConexaoOdoo():
         total_venda = sum(map(lambda c: c.get('amount_total'),
                               filter(lambda ct: ct.get('state') == 'sale', sale_order_dados)))
         return round((total_cotacao / total_venda) * 100, 2)
+
+    def get_valor_total_faturas(self):
+        """
+        O metodo encontra o valor total das faturas do mes 06/2017.
+        :return: Valor total das faturas
+        :rtype: float
+        """
+        account_invoice_ids = self.conn.execute(
+            self.database, self.uid, self.password, 'account.invoice', 'search',
+            [('date_invoice', '>=', '2017-06-01'), ('date_invoice', '<=', '2017-06-30')])
+        if not account_invoice_ids:
+            return 0.00
+        account_invoice_dados = self.conn.execute(
+            self.database, self.uid, self.password, 'account.invoice', 'read', account_invoice_ids,
+            ['residual'])
+        account_invoice_total = sum(map(lambda a: a.get('residual') or 0, account_invoice_dados))
+        return account_invoice_total
 
 
 ConexaoOdoo()
