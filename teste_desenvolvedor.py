@@ -22,6 +22,8 @@ class ConexaoOdoo():
         print '10 primeiros clientes por ordem alfebetica: \n%s' % cliente_dados
         maior_venda_dados = self.get_maior_venda_dados()
         print 'Maior venda feita:\n %s.' % maior_venda_dados
+        produto_maior_venda_dados = self.get_produto_maior_venda_dados()
+        print 'Produtos da maior venda:\n' % produto_maior_venda_dados
 
     def new_connection(self):
         """
@@ -112,6 +114,29 @@ class ConexaoOdoo():
             sale_order_dados = sale_order_dados[0]
         return 'Cliente: %s / Total: %s\n' % (sale_order_dados.get('partner_id')[1],
                                               sale_order_dados.get('amount_total'))
+
+    def get_produto_maior_venda_dados(self):
+        """
+        O metodo encontra os dados dos itens da maior venda.
+        :return: Descricao dos nomes dos produtos e seu valor total.
+        :rtype: str
+        """
+        sale_order_ids = self.conn.execute(self.database, self.uid, self.password, 'sale.order',
+                                           'search', [], 0, 1, 'amount_total DESC')
+        sale_order_dados = self.conn.execute(self.database, self.uid, self.password, 'sale.order',
+                                             'read', sale_order_ids, ['order_line'])
+        if not sale_order_dados:
+            return ''
+        if isinstance(sale_order_dados, (list, tuple)):
+            sale_order_dados = sale_order_dados[0]
+        order_line_dados = self.conn.execute(self.database, self.uid, self.password,
+                                             'sale.order.line', 'read',
+                                             sale_order_dados.get('order_line'),
+                                             ['product_id', 'price_subtotal'])
+        produto_dados = list()
+        map(lambda d: produto_dados.append(
+            '%s / %s' % (d.get('product_id')[1], d.get('price_subtotal'))), order_line_dados)
+        return ' \n'.join(produto_dados)
 
 
 ConexaoOdoo()
