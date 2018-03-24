@@ -30,6 +30,8 @@ class ConexaoOdoo():
         print 'Total de faturas 06/2017: R$%s\n' % valor_total_faturas
         orcamento_id = self.create_orcamento(cliente_id)
         print 'ID do orcamento criado: %s\n' % orcamento_id
+        venda_confirmada = self.set_sale(orcamento_id)
+        print 'Venda confirmada: %s' % 'Sim' if venda_confirmada else 'Nao'
 
     def new_connection(self):
         """
@@ -216,6 +218,17 @@ class ConexaoOdoo():
         orcamento_id = self.conn.execute(self.database, self.uid, self.password, 'sale.order',
                                          'create', vals)
         return orcamento_id
+
+    def set_sale(self, orcamento_id):
+        """
+        O metodo confirma a venda do orcamento recebido (orcamento_id).
+        :param orcamento_id: id da tabela sale_order, identificador do orcamento.
+        :return: Verdadeiro, caso a venda seja confirmada. Senao,  Falso.
+        :rtype: bool
+        """
+        venda_confirmada = self.conn.execute(self.database, self.uid, self.password, 'sale.order',
+                                             'action_confirm', orcamento_id)
+        return venda_confirmada
 
 
 ConexaoOdoo()
