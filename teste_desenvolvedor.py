@@ -28,6 +28,8 @@ class ConexaoOdoo():
         print 'O percentual de fechamento e: %s\n' % percentual_de_vendas
         valor_total_faturas = self.get_valor_total_faturas()
         print 'Total de faturas 06/2017: R$%s\n' % valor_total_faturas
+        orcamento_id = self.create_orcamento(cliente_id)
+        print 'ID do orcamento criado: %s\n' % orcamento_id
 
     def new_connection(self):
         """
@@ -176,6 +178,44 @@ class ConexaoOdoo():
             ['residual'])
         account_invoice_total = sum(map(lambda a: a.get('residual') or 0, account_invoice_dados))
         return account_invoice_total
+
+    def create_orcamento(self, cliente_id):
+        """
+        O metodo cria um orcamento.
+        :param cliente_id: id da tabela res_partner, identificador do cliente.
+        :return: id do orcamento
+        :rtype: int
+        """
+        partner_invoice_id = self.conn.execute(self.database, self.uid, self.password,
+                                               'res.partner', 'search', [], 0, 1) or False
+        if partner_invoice_id:
+            partner_invoice_id = partner_invoice_id[0]
+
+        pricelist_id = self.conn.execute(self.database, self.uid, self.password,
+                                         'product.pricelist', 'search', [], 0, 1) or False
+        if pricelist_id:
+            pricelist_id = pricelist_id[0]
+
+        product_id = self.conn.execute(self.database, self.uid, self.password,
+                                       'product.product', 'search', [], 0, 1) or False
+        if product_id:
+            product_id = product_id[0]
+
+        product_uom_id = self.conn.execute(self.database, self.uid, self.password,
+                                           'product.uom', 'search', [], 0, 1) or False
+        if product_uom_id:
+            product_uom_id = product_uom_id[0]
+
+        order_line_ids = [(0, 0, {'product_id': product_id, 'product_uom': product_uom_id,
+                                  'name': 'Teste item orcamento', 'product_uom_qty': 10.00,
+                                  'price_unit': 10.00})]
+
+        vals = {'partner_id': cliente_id, 'partner_invoice_id': partner_invoice_id,
+                'patner_shipping_id': partner_invoice_id,
+                'pricelist_id': pricelist_id, 'order_line': order_line_ids}
+        orcamento_id = self.conn.execute(self.database, self.uid, self.password, 'sale.order',
+                                         'create', vals)
+        return orcamento_id
 
 
 ConexaoOdoo()
