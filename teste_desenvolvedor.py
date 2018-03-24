@@ -21,9 +21,11 @@ class ConexaoOdoo():
         cliente_dados = self.get_cliente_dados()
         print '10 primeiros clientes por ordem alfebetica: \n%s' % cliente_dados
         maior_venda_dados = self.get_maior_venda_dados()
-        print 'Maior venda feita:\n %s.' % maior_venda_dados
+        print 'Maior venda feita:\n%s' % maior_venda_dados
         produto_maior_venda_dados = self.get_produto_maior_venda_dados()
-        print 'Produtos da maior venda:\n' % produto_maior_venda_dados
+        print 'Produtos da maior venda:\n%s' % produto_maior_venda_dados
+        percentual_de_vendas = self.get_percentual_de_vendas()
+        print 'O percentual de fechamento e: %s' % percentual_de_vendas
 
     def new_connection(self):
         """
@@ -137,6 +139,24 @@ class ConexaoOdoo():
         map(lambda d: produto_dados.append(
             '%s / %s' % (d.get('product_id')[1], d.get('price_subtotal'))), order_line_dados)
         return ' \n'.join(produto_dados)
+
+    def get_percentual_de_vendas(self):
+        """
+        O metodo encontra o percentual de vendas confirmadas em relacao as cotacoes.
+        :return: O valor percentual
+        :rtype: float
+        """
+        sale_order_ids = self.conn.execute(self.database, self.uid, self.password, 'sale.order',
+                                           'search', [('state', 'in', ('draft', 'sale'))])
+        sale_order_dados = self.conn.execute(self.database, self.uid, self.password, 'sale.order',
+                                             'read', sale_order_ids, ['amount_total', 'state'])
+        if not sale_order_dados:
+            return 0.00
+        total_cotacao = sum(map(lambda c: c.get('amount_total'),
+                                filter(lambda ct: ct.get('state') == 'draft', sale_order_dados)))
+        total_venda = sum(map(lambda c: c.get('amount_total'),
+                              filter(lambda ct: ct.get('state') == 'sale', sale_order_dados)))
+        return round((total_cotacao / total_venda) * 100, 2)
 
 
 ConexaoOdoo()
