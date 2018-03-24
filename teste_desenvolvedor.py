@@ -10,7 +10,6 @@ class ConexaoOdoo():
         self.host = str(raw_input('Host/IP Odoo: '))
         self.user = str(raw_input('Usuario Odoo: '))
         self.password = str(raw_input('Senha Odoo: '))
-        self.port = raw_input('Porta Odoo: ')
         self.conn, self.uid = self.new_connection()
         cliente_id = self.create_cliente()
         print 'ID do cliente criado: %s.\n' % cliente_id
@@ -21,16 +20,18 @@ class ConexaoOdoo():
         cliente_dados = self.get_cliente_dados()
         print '10 primeiros clientes por ordem alfebetica: \n%s' % cliente_dados
         maior_venda_dados = self.get_maior_venda_dados()
-        print 'Maior venda feita:\n%s' % maior_venda_dados
+        print 'Maior venda feita:\n%s' % maior_venda_dados or 'Nao possui vendas'
         produto_maior_venda_dados = self.get_produto_maior_venda_dados()
-        print 'Produtos da maior venda:\n%s' % produto_maior_venda_dados
+        print 'Produtos da maior venda:\n%s' % produto_maior_venda_dados or 'Nehum produto vendido'
         percentual_de_vendas = self.get_percentual_de_vendas()
         print 'O percentual de fechamento e: %s\n' % percentual_de_vendas
         valor_total_faturas = self.get_valor_total_faturas()
         print 'Total de faturas 06/2017: R$%s\n' % valor_total_faturas
         orcamento_id = self.create_orcamento(cliente_id)
-        print 'ID do orcamento criado: %s\n' % orcamento_id
-        venda_confirmada = self.set_sale(orcamento_id)
+        print 'ID do orcamento criado: %s\n' % orcamento_id or 'Nao foi possivel criar o orcamento'
+        venda_confirmada = False
+        if orcamento_id:
+            venda_confirmada = self.set_sale(orcamento_id)
         print 'Venda confirmada: %s' % 'Sim' if venda_confirmada else 'Nao'
 
     def new_connection(self):
@@ -41,15 +42,10 @@ class ConexaoOdoo():
         """
         if not self.password:
             self.password = None
-        if not self.port:
-            self.port = 8069
         try:
-            sock_common = xmlrpclib.ServerProxy('http://' + self.host + ':' + str(self.port) +
-                                                '/xmlrpc/common')
-            socket.setdefaulttimeout(3)
+            sock_common = xmlrpclib.ServerProxy('https://' + self.host + '/xmlrpc/2/common')
             uid = sock_common.login(self.database, self.user, self.password)
-            sock = xmlrpclib.ServerProxy('http://' + self.host + ':' + str(self.port) +
-                                         '/xmlrpc/object')
+            sock = xmlrpclib.ServerProxy('http://' + self.host + '/xmlrpc/2/object')
             return sock, uid
         except:
             print 'Nao foi possivel conectar ao Odoo!'
@@ -63,8 +59,8 @@ class ConexaoOdoo():
         """
         vals = {'name': 'Tiago Henrique Prates', 'email': 'tiagoprates_911@hotmail.com',
                 'phone': '98233-7159', 'zip': '35700-000'}
-        cliente_id = self.conn.execute(self.database, self.uid, self.password,
-                                       'res.partner', 'create', vals)
+        cliente_id = self.conn.execute_kw(self.database, self.uid, self.password,
+                                          'res.partner', 'create', [vals])
         return cliente_id
 
     def update_cliente(self, cliente_id):
@@ -76,9 +72,9 @@ class ConexaoOdoo():
         :rtype: bool
         """
         vals = {'phone': '982648882'}  # Nao encontrei o campo RG, incluido CPF
-        cliante_atualizado = self.conn.execute(self.database, self.uid, self.password,
+        cliente_atualizado = self.conn.execute(self.database, self.uid, self.password,
                                                'res.partner', 'write', [cliente_id], vals)
-        return cliante_atualizado
+        return cliente_atualizado
 
     def get_quantidade_cliente(self):
         """
@@ -99,11 +95,11 @@ class ConexaoOdoo():
         cliente_ids = self.conn.execute(self.database, self.uid, self.password, 'res.partner',
                                         'search', [], 0, 10, 'id')
         cliente_dados = self.conn.execute(self.database, self.uid, self.password, 'res.partner',
-                                          'read', cliente_ids, ['name', 'city_id'])
+                                          'read', cliente_ids, ['name', 'city'])
         cliente_dados = sorted(cliente_dados, key=lambda n: n.get('name').lower())
         list_dados = list()
         map(lambda d: list_dados.append(
-            '%s / %s' % (d.get('name'), d.get('city_id')[1] or 'Nao cadastrado')), cliente_dados)
+            '%s / %s' % (d.get('name'), d.get('city') or 'Nao cadastrado')), cliente_dados)
         return ' \n'.join(list_dados)
 
     def get_maior_venda_dados(self):
@@ -162,7 +158,7 @@ class ConexaoOdoo():
                                 filter(lambda ct: ct.get('state') == 'draft', sale_order_dados)))
         total_venda = sum(map(lambda c: c.get('amount_total'),
                               filter(lambda ct: ct.get('state') == 'sale', sale_order_dados)))
-        return round((total_cotacao / total_venda) * 100, 2)
+        return round((total_cotacao / (total_venda or 1.0)) * 100, 2)
 
     def get_valor_total_faturas(self):
         """
@@ -208,15 +204,20 @@ class ConexaoOdoo():
         if product_uom_id:
             product_uom_id = product_uom_id[0]
 
-        order_line_ids = [(0, 0, {'product_id': product_id, 'product_uom': product_uom_id,
-                                  'name': 'Teste item orcamento', 'product_uom_qty': 10.00,
-                                  'price_unit': 10.00})]
-
+        if not all([cliente_id, partner_invoice_id, pricelist_id]):
+            return False
         vals = {'partner_id': cliente_id, 'partner_invoice_id': partner_invoice_id,
                 'patner_shipping_id': partner_invoice_id,
-                'pricelist_id': pricelist_id, 'order_line': order_line_ids}
-        orcamento_id = self.conn.execute(self.database, self.uid, self.password, 'sale.order',
-                                         'create', vals)
+                'pricelist_id': pricelist_id}
+        orcamento_id = self.conn.execute_kw(self.database, self.uid, self.password, 'sale.order',
+                                            'create', [vals])
+        vals = [{'product_id': product_id, 'product_uom': product_uom_id,
+                 'name': 'Teste item orcamento', 'product_uom_qty': 10.00,
+                 'price_unit': 10.00, 'order_id': orcamento_id}]
+        if not all([product_uom_id, product_id, orcamento_id]):
+            return False
+        self.conn.execute_kw(self.database, self.uid, self.password, 'sale.order.line', 'create',
+                             vals)
         return orcamento_id
 
     def set_sale(self, orcamento_id):
