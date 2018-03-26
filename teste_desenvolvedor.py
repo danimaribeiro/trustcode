@@ -45,7 +45,7 @@ class ConexaoOdoo():
         try:
             sock_common = xmlrpclib.ServerProxy('https://' + self.host + '/xmlrpc/2/common')
             uid = sock_common.login(self.database, self.user, self.password)
-            sock = xmlrpclib.ServerProxy('http://' + self.host + '/xmlrpc/2/object')
+            sock = xmlrpclib.ServerProxy('https://' + self.host + '/xmlrpc/2/object')
             return sock, uid
         except:
             print 'Nao foi possivel conectar ao Odoo!'
